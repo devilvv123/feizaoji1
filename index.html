@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>SOAP OS</title>
     <style>
         :root {
@@ -21,7 +21,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Arial, sans-serif; letter-spacing: 0.2px; }
+        body { background-color: #000; display: flex; justify-content: center; align-items: center; height: 100dvh; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Arial, sans-serif; letter-spacing: 0.2px; }
 
         body.hide-bubble-names .bubble-name { display: none !important; }
 
@@ -5169,6 +5169,35 @@
     </div>
 
 <script>
+    // ====== 强大的本地存储引擎 (替代 localStorage 解决图片超出5MB保存失败问题) ======
+    const LocalDB = {
+        dbName: 'SoapOS_DB', storeName: 'store',
+        init() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(this.dbName, 1);
+                request.onupgradeneeded = (e) => e.target.result.createObjectStore(this.storeName);
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e);
+            });
+        },
+        async setItem(key, val) {
+            const db = await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readwrite');
+                tx.objectStore(this.storeName).put(val, key);
+                tx.oncomplete = () => resolve(true); tx.onerror = () => reject(false);
+            });
+        },
+        async getItem(key) {
+            const db = await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readonly');
+                const req = tx.objectStore(this.storeName).get(key);
+                req.onsuccess = () => resolve(req.result); req.onerror = () => reject(null);
+            });
+        }
+    };
+
     const SVG_BOOK = `<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`;
     const SVG_USER = `<svg class="avatar-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>`;
     const SVG_BOT = `<svg class="avatar-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4M8 16h8"/></svg>`;
@@ -5300,7 +5329,7 @@
         updateChatTopUI();  // 实时把顶部的光标刷新出来让你看看效果
     }
 
-    window.onload = () => {
+    window.onload = async () => {
         /* 强制默认不全屏：如果新玩家没缓存，直接焊死为 false */
         let savedFS = localStorage.getItem('g_fullscreen');
         if (savedFS === null) {
@@ -5315,13 +5344,13 @@
             document.getElementById('main-frame').classList.remove('fullscreen-mode');
         }
         
-        const sC = localStorage.getItem('soap_contacts_v28') || localStorage.getItem('soap_contacts_v27') || localStorage.getItem('soap_contacts_v26') || localStorage.getItem('soap_contacts_v25'); 
+        const sC = await LocalDB.getItem('soap_contacts_v28') || await LocalDB.getItem('soap_contacts_v27'); 
         contacts = sC ? JSON.parse(sC) : defaultContacts;
         
-        const sM = localStorage.getItem('soap_masks_v28') || localStorage.getItem('soap_masks_v27') || localStorage.getItem('soap_masks_v26') || localStorage.getItem('soap_masks_v25'); 
+        const sM = await LocalDB.getItem('soap_masks_v28') || await LocalDB.getItem('soap_masks_v27'); 
         masks = sM ? JSON.parse(sM) : masks;
         
-        const sG = localStorage.getItem('soap_global_v28') || localStorage.getItem('soap_global_v27') || localStorage.getItem('soap_global_v26') || localStorage.getItem('soap_global_v25'); 
+        const sG = await LocalDB.getItem('soap_global_v28') || await LocalDB.getItem('soap_global_v27'); 
         if(sG) gConfig = { ...defaultGlobal, ...JSON.parse(sG) };
         if(!gConfig.sumPrompts) gConfig.sumPrompts = defaultGlobal.sumPrompts;
         if(!gConfig.stickers) gConfig.stickers = defaultGlobal.stickers; 
@@ -5341,11 +5370,11 @@
         }
         renderFilterTabs(); // 启动时立即渲染顶部分组栏
 
-        const sW = localStorage.getItem('soap_widget_v28') || localStorage.getItem('soap_widget_v27') || localStorage.getItem('soap_widget_v26') || localStorage.getItem('soap_widget_v25'); 
+        const sW = await LocalDB.getItem('soap_widget_v28') || await LocalDB.getItem('soap_widget_v27'); 
         if(sW) wgData = { ...defaultWidget, ...JSON.parse(sW) };
         
         // 读取艺术组件的独立数据
-        const sArt = localStorage.getItem('soap_art_widget_v1');
+        const sArt = await LocalDB.getItem('soap_art_widget_v1');
         if(sArt) artWidgetData = { ...defaultArtWidget, ...JSON.parse(sArt) };
         
     // ================= 全新：动态分组渲染与管理引擎 =================
@@ -5519,15 +5548,15 @@
         });
     }
 
-    function saveData() { 
-        localStorage.setItem('soap_contacts_v28', JSON.stringify(contacts)); 
-        localStorage.setItem('soap_masks_v28', JSON.stringify(masks)); 
-        localStorage.setItem('soap_global_v28', JSON.stringify(gConfig)); 
-        localStorage.setItem('soap_widget_v28', JSON.stringify(wgData)); 
+    async function saveData() { 
+        await LocalDB.setItem('soap_contacts_v28', JSON.stringify(contacts)); 
+        await LocalDB.setItem('soap_masks_v28', JSON.stringify(masks)); 
+        await LocalDB.setItem('soap_global_v28', JSON.stringify(gConfig)); 
+        await LocalDB.setItem('soap_widget_v28', JSON.stringify(wgData)); 
         // 同步保存独立组件数据
-        localStorage.setItem('soap_art_widget_v1', JSON.stringify(artWidgetData)); 
-        localStorage.setItem('soap_worldbooks_v28', JSON.stringify(worldbooks)); 
-        localStorage.setItem('soap_phonelogs_v28', JSON.stringify(phoneLogs));
+        await LocalDB.setItem('soap_art_widget_v1', JSON.stringify(artWidgetData)); 
+        await LocalDB.setItem('soap_worldbooks_v28', JSON.stringify(worldbooks)); 
+        await LocalDB.setItem('soap_phonelogs_v28', JSON.stringify(phoneLogs));
     }
 
     function exportData() {
